@@ -16,7 +16,7 @@ struct pkt *getPkt(){
 	struct pkt *packet = malloc(sizeof(struct pkt));
 	scanf("%d", &packet->n_seq);
 	printf("");
-	/*fgfgfghfhtggfgfffvvfvfmkkmgfh*/
+	/*HELLO MODAFUCKA*/
 	return packet;
 
 }
