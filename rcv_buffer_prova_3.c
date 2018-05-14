@@ -10,9 +10,10 @@
 #define WINDOW   7
 #define NSEQ 17
 #define SERV_PORT 2345
+#define PKTDIM 64
 
 struct buf_data {
-    
+
     int buf_len;
     int N;
     int pos_0;
@@ -32,39 +33,22 @@ struct pkt {
     int flag;
 };
 
-int isReceiver(int n){
-
-    if(n == 2)
-	return 1;
-    else
-	return 0;
-}
-
-void write_on_file(int seq){
-
-	printf("il pacchetto con n_seq %d è stato consegnato\n", seq);
-}
-
 void insert_pkt_and_flag(struct pkt *packet, struct pkt *buf, int pos){
 	buf[pos] = *packet;
         buf[pos].flag = 1;
 }
 
-int is_flagged(struct pkt *buf, int pos){
-
-	if(buf[pos].flag == 1)
-		return 1;
-	else
-		return 0;
+void write_on_file(int filedescr, struct pkt pkt, size_t n){
+    
+    int seq = pkt.n_seq;
+    printf("il pacchetto con n_seq %d è stato consegnato\n", seq);
 }
 
-void unflag(struct pkt *buf, int pos){
-	
-	buf[pos].flag = 0;
-}
+
+
 
 void set_data(struct buf_data *data,int bf_ln, int N,int sq_rng_ln){
-    
+
     data-> buf_len = bf_ln;
     data->N = N;
     data->seq_range_len = sq_rng_ln;
@@ -174,7 +158,7 @@ int accept_packet(int seq, struct buf_data *data, void *buff, struct pkt *packet
 }
 
 
-void move_and_write(int pos, int seq, struct buf_data *data, void *buff, char *filepath, int sndorrcv){
+void move_and_write(int filedescr,int size_to_write, int pos, int seq, struct buf_data *data, struct pkt *buff){
 
     int buf_len = data-> buf_len;
     int N = data -> N;
@@ -187,19 +171,14 @@ void move_and_write(int pos, int seq, struct buf_data *data, void *buff, char *f
     int seq_range_len = data -> seq_range_len;
 
     int pos_pkt = pos;
-    
+
 
     if( seq == base){
         int i = pos_pkt;
-        while(is_flagged(buff, i)){
-            unflag(buff, i);
-	    
+        while(buff[i].flag == 1){
+            buff[i].flag = 0;
+	    write_on_file(filedescr, buff[i], size_to_write);
 
-            if(isReceiver(sndorrcv)){
-
-                //write_on_file(buff[i], filepath);
-		write_on_file(seq);
-            }
 
             //printf("il pacchetto con n_seq %d è stato consegnato\n", seq);
 
@@ -232,7 +211,8 @@ void move_and_write(int pos, int seq, struct buf_data *data, void *buff, char *f
 }
 
 int main(void){
-
+    
+    int fd; //file descriptor aperto
     struct buf_data data;
     set_data(&data, BUFFER, WINDOW, NSEQ);
 
@@ -257,24 +237,22 @@ int main(void){
 
     while(1){
 
-        //struct pkt *arr_pkt = malloc(sizeof(struct pkt));
-        //*arr_pkt = getPkt(&sd, &cliaddr);
-	struct pkt arr_pkt;
-	arr_pkt = getPkt(&sd, &cliaddr);
+        struct pkt arr_pkt;
+        arr_pkt = getPkt(&sd, &cliaddr);
         int pos_pkt;
         int n_seq = arr_pkt.n_seq;
 
         printf("ricevuto pacchetto con numero sequenza %d\n", n_seq);
-    
+
         pos_pkt = accept_packet(n_seq, &data,(struct pkt*) recvBuffer, &arr_pkt);
-	printf("la posizione tornata è %d\n", pos_pkt);
+        printf("la posizione tornata è %d\n", pos_pkt);
         if(pos_pkt >= 0 || pos_pkt == -2){
             send_ack(&sd, n_seq, &cliaddr);
-	}
+        }
 
-	if(pos_pkt >= 0){
-	    move_and_write(pos_pkt, n_seq, &data, (struct pkt*) recvBuffer, "path", 2);
-	}
+        if(pos_pkt >= 0){
+            move_and_write(fd,PKTDIM , pos_pkt, n_seq, &data, (struct pkt*) recvBuffer);
+        }
     }
 }
 	    
