@@ -34,18 +34,7 @@ struct pkt {
     int flag;
 };
 
-int isReceiver(int n){
 
-    if(n == 2)
-	return 1;
-    else
-	return 0;
-}
-
-void write_on_file(int seq){
-
-	printf("il pacchetto con n_seq %d è stato consegnato\n", seq);
-}
 
 void insert_pkt_and_flag(struct pkt *packet, char *buf, int pos){
 
@@ -53,18 +42,6 @@ void insert_pkt_and_flag(struct pkt *packet, char *buf, int pos){
 	packet->flag =1;
 }
 
-int is_flagged(char *buff, int i){
-
-	if(buff[i] == 1)
-		return 1;
-	else
-		return 0;
-}	
-
-void unflag(char *buff, int pos){
-
-	buff[pos]=0;
-}
 
 void set_data(struct buf_data *data,int bf_ln, int N,int sq_rng_ln){
     
@@ -165,7 +142,7 @@ int accept_packet(int seq, struct buf_data *data, void *buff, struct pkt *packet
 }
 
 
-void move_and_write(int pos, int seq, struct buf_data *data, void *buff, char *filepath, int sndorrcv){
+void move_window(int pos, int seq, struct buf_data *data, char *buff){
 
     int buf_len = data-> buf_len;
     int N = data -> N;
@@ -178,22 +155,14 @@ void move_and_write(int pos, int seq, struct buf_data *data, void *buff, char *f
     int seq_range_len = data -> seq_range_len;
 
     int pos_pkt = pos;
-    
-    
-    
+
     if( seq == base){
         int i = pos_pkt;
-        while(is_flagged(buff, i)){
-            unflag(buff, i);
-	    
+        while(buff[i] == 1){
+            buff[i] =0;
 
-            if(isReceiver(sndorrcv)){
 
-                //write_on_file(buff[i], filepath);
-		write_on_file(seq);
-            }
-
-            //printf("il pacchetto con n_seq %d è stato consegnato\n", seq);
+            printf("il pacchetto con n_seq %d è stato consegnato\n", seq);
 
             base_prev = base;
             end_wind_prev = end_wind;
@@ -221,6 +190,7 @@ void move_and_write(int pos, int seq, struct buf_data *data, void *buff, char *f
     data -> end_wind = end_wind;
     data -> base_prev = base_prev;
     data -> end_wind_prev = end_wind_prev;
+
 }
 
 int try_send(int sockdesc, struct pkt *packet, struct sockaddr_in *sk, struct buf_data *data){
@@ -271,7 +241,7 @@ int recv_ack(int *sockdesc, char *recvbuf, struct buf_data *data){
     printf("ho ricevuto ack con numero sequenza %d\n", seq_num);
     int pos = accept_packet(seq_num, data, recvbuf, &packet);
     if(pos >= 0){
-	move_and_write(pos, seq_num, data, recvbuf, NULL, 1);
+	move_window(pos, seq_num, data, recvbuf);
     }
     return 1;
 }
